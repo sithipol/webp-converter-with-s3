@@ -1,0 +1,20 @@
+[2025-10-28 10:21:41] INFO: 🚀 Server running at http://localhost:8001
+[2025-10-28 10:21:52] INFO: Starting conversion for bucket: webp-bucket-for-converter
+[2025-10-28 10:21:52] INFO: Converting uat/test-subfolder/palazzo.jpg to uat/test-subfolder/palazzo.webp
+[2025-10-28 10:21:52] INFO: ✅ Done: uat/test-subfolder/palazzo.webp
+[2025-10-28 10:21:52] INFO: Converting uat/test-subfolder/single-house_70042-gallery_image_12-th.jpg to uat/test-subfolder/single-house_70042-gallery_image_12-th.webp
+[2025-10-28 10:21:52] INFO: ✅ Done: uat/test-subfolder/single-house_70042-gallery_image_12-th.webp
+[2025-10-28 10:21:52] INFO: ✅ All files converted successfully
+[2025-10-28 10:23:36] INFO: Starting conversion for bucket: webp-bucket-for-converter
+[2025-10-28 10:23:37] INFO: Converting uat/test-subfolder/palazzo.jpg to uat/test-subfolder/palazzo.webp
+[2025-10-28 10:23:37] INFO: ✅ Done: uat/test-subfolder/palazzo.webp
+[2025-10-28 10:23:37] INFO: Converting uat/test-subfolder/single-house_70042-gallery_image_12-th.jpg to uat/test-subfolder/single-house_70042-gallery_image_12-th.webp
+[2025-10-28 10:23:37] INFO: ✅ Done: uat/test-subfolder/single-house_70042-gallery_image_12-th.webp
+[2025-10-28 10:23:37] INFO: ✅ All files converted successfully
+[2025-10-28 10:24:02] INFO: 🚀 Server running at http://localhost:8001
+[2025-10-28 10:24:06] INFO: Starting conversion for bucket: webp-bucket-for-converter
+[2025-10-28 10:24:07] INFO: Converting uat/test-subfolder/palazzo.jpg to uat/test-subfolder/palazzo.webp
+[2025-10-28 10:24:07] INFO: ✅ Done: uat/test-subfolder/palazzo.webp
+[2025-10-28 10:24:07] INFO: Converting uat/test-subfolder/single-house_70042-gallery_image_12-th.jpg to uat/test-subfolder/single-house_70042-gallery_image_12-th.webp
+[2025-10-28 10:24:08] INFO: ✅ Done: uat/test-subfolder/single-house_70042-gallery_image_12-th.webp
+[2025-10-28 10:24:08] INFO: ✅ All files converted successfully
