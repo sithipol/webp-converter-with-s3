@@ -1,10 +1,12 @@
-# Production Docker Compose
+# Development Docker Compose
 version: '3.8'
 
 services:
-  webp-cli:
-    image: public.ecr.aws/d8n6n6f3/cli:latest
-    container_name: webp-cli-prod
+  webp-cli-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: webp-cli-dev
     env_file:
       - .env
     environment:
@@ -16,12 +18,22 @@ services:
       - AWS_PROFILE=
       - AWS_CONFIG_FILE=
       - AWS_SHARED_CREDENTIALS_FILE=
+      # Development settings
+      - NODE_ENV=development
+      - LOG_LEVEL=debug
     volumes:
-      # Mount logs directory for persistent logging
+      # Mount source code for development hot-reload
+      - ./src:/app/src
       - ./logs:/app/logs
-    restart: "no"  # CLI should not restart automatically
+      - ./package.json:/app/package.json
+      - ./tsconfig.json:/app/tsconfig.json
+      # Mount node_modules as named volume for performance
+      - node_modules:/app/node_modules
     networks:
       - webp-network
+
+volumes:
+  node_modules:
 
 networks:
   webp-network:
