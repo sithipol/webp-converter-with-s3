@@ -1,0 +1,39 @@
+# Node modules
+node_modules
+npm-debug.log*
+
+# Build output (will be generated in container)
+dist
+
+# Development files
+*.md
+.git
+.gitignore
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs (will be mounted as volume)
+logs/*.log
+logs/*.json
+
+# Environment files (handled via docker-compose)
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Docker files
+Dockerfile*
+docker-compose*
+
+# Documentation
+README.md
+TRACKING_OPTIMIZATION.md

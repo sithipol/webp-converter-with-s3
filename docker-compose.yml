@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  # CLI Service - runs commands on demand
+  webp-cli:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: webp-cli
+    env_file:
+      - .env
+    environment:
+      # Ensure AWS credentials are properly set from .env
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+      # Disable AWS profile lookup to force using env vars
+      - AWS_PROFILE=
+      - AWS_CONFIG_FILE=
+      - AWS_SHARED_CREDENTIALS_FILE=
+    volumes:
+      # Mount logs directory for persistent logging
+      - ./logs:/app/logs
+    # Don't start automatically - run commands manually
+    profiles:
+      - cli
+    networks:
+      - webp-network
+
+networks:
+  webp-network:
+    driver: bridge
