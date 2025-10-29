@@ -11,6 +11,7 @@ export interface Config {
     secretAccessKey?: string | undefined;
     prefix?: string | undefined;
     cacheControl?: string | undefined;
+    maxKeys: number;
   };
   conversion: {
     quality: number;
@@ -29,6 +30,9 @@ export interface Config {
   server: {
     port: number;
     host: string;
+  };
+  mockup?: {
+    imageCount: number;
   };
 }
 
@@ -211,6 +215,7 @@ export function loadConfig(): Config {
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
       prefix: process.env.AWS_PREFIX || "",
+      maxKeys: parseInt(process.env.AWS_MAX_KEYS || "1000", 10),
     },
     conversion: {
       quality: parseInt(process.env.WEBP_QUALITY || "80", 10),
@@ -232,6 +237,9 @@ export function loadConfig(): Config {
       port: parseInt(process.env.PORT || "3000", 10),
       host: process.env.HOST || "0.0.0.0",
     },
+    mockup: {
+      imageCount: parseInt(process.env.MOCKUP_IMAGE_COUNT || "0", 10),
+    }
   };
 
   // Validate the configuration

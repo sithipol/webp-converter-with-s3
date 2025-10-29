@@ -9,6 +9,8 @@ import {
   PutObjectCommand,
 } from "@aws-sdk/client-s3";
 import { Config } from "../config/index";
+import axios from "axios";
+
 export interface S3Object {
   key: string;
   size: number;
@@ -33,6 +35,11 @@ export interface S3Service {
     };
   }>;
   downloadImage(bucketName: string, key: string): Promise<Buffer>;
+  uploadMockupImage(
+    bucketName: string,
+    key: string,
+    imageUrl: string,
+  ): Promise<void>;
 }
 
 export class AWSS3Service implements S3Service {
@@ -265,6 +272,38 @@ export class AWSS3Service implements S3Service {
         status: "unhealthy",
         details,
       };
+    }
+  }
+  async uploadMockupImage(
+    bucketName: string,
+    key: string,
+    imageUrl: string,
+  ): Promise<void> {
+    try {
+      // Download image from the provided URL
+      const response = await axios.get<ArrayBuffer>(imageUrl, {
+        responseType: "arraybuffer",
+      });
+      const buffer = Buffer.from(response.data);
+
+      // Upload the image to S3
+      const command = new PutObjectCommand({
+        Bucket: bucketName,
+        Key: key,
+        Body: buffer,
+        ContentType: "image/jpeg",
+        CacheControl:
+          this.config.aws.cacheControl || "public, max-age=31536000", // 1 year
+      });
+
+      await this.client.send(command);
+    } catch (error) {
+      if (error instanceof S3ServiceException) {
+        throw new Error(
+          `Failed to upload mockup image ${key} to bucket ${bucketName}: ${error.message}`
+        );
+      }
+      throw error;
     }
   }
 }

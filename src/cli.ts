@@ -58,9 +58,9 @@ export class CLI {
     
     // Mockup images to s3 
     this.program
-      .command('mock-image')
+      .command("mock-image")
       .description("Mockup image to s3 100")
-      .action(async (options: { yes?: boolean }) => {
+      .action(async (options: CLIOptions) => {
         await this.mockImage(options);
       });
   }
@@ -252,7 +252,7 @@ export class CLI {
       // Run conversion
       await app.runMockup(appOptions);
 
-      console.log("\n✅ Image conversion process completed successfully");
+      console.log("\n✅ Image mockup process completed successfully");
       // Shutdown gracefully
       await app.shutdown();
     } catch (error) {

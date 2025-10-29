@@ -3,7 +3,6 @@ import { ConversionReport, ConversionResult } from "../models";
 import { ImageProcessor } from "./imageProcess";
 import { S3Object, S3Service } from "./s3Service";
 import { ConversionTracker, ConversionRecord } from "./conversionTracker";
-
 export interface ConversionService {
   processAllImages(): Promise<ConversionReport>;
   processImage(s3Object: S3Object): Promise<ConversionResult>;
@@ -78,9 +77,9 @@ export class BatchConversionService implements ConversionService {
         if (await this.conversionTracker.isConverted(image.key)) {
           alreadyConverted++;
           console.info(`Skipping already converted image: ${image.key}`, {
-            operation: 'conversion.skip',
+            operation: "conversion.skip",
             sourceKey: image.key,
-            reason: 'already_converted'
+            reason: "already_converted",
           });
         } else {
           images.push(image);
@@ -88,14 +87,16 @@ export class BatchConversionService implements ConversionService {
       }
 
       console.info(`Image filtering completed`, {
-        operation: 'batch.filter',
+        operation: "batch.filter",
         totalImages: allImages.length,
         alreadyConverted,
-        toProcess: images.length
+        toProcess: images.length,
       });
 
       if (images.length === 0) {
-        console.info('All images have already been converted, nothing to process');
+        console.info(
+          "All images have already been converted, nothing to process"
+        );
         report.processingDuration = Date.now() - startTime;
         return report;
       }
@@ -325,7 +326,7 @@ export class BatchConversionService implements ConversionService {
           convertedAt: new Date().toISOString(),
           originalSize: result.originalSize,
           convertedSize: result.convertedSize,
-          compressionRatio: result.compressionRatio
+          compressionRatio: result.compressionRatio,
         };
 
         await this.conversionTracker.markAsConverted(conversionRecord);
@@ -343,7 +344,7 @@ export class BatchConversionService implements ConversionService {
         console.info(`DRY RUN: Would track conversion: ${sourceKey}`, {
           operation: "conversion.dryrun.track",
           sourceKey,
-          targetKey
+          targetKey,
         });
       }
 
@@ -391,6 +392,22 @@ export class BatchConversionService implements ConversionService {
     }
   }
   async mockupImage(): Promise<void> {
-    
+    const bucketName = this.config.aws.targetBucket;
+    const prefix = this.config.aws.prefix || "mockup/";
+    const totalImages = this.config.mockup?.imageCount || 0;
+
+    try {
+      for (let i = 1; i <= totalImages; i++) {
+        const imageUrl = `https://picsum.photos/seed/${i}/600/400`; // random image
+
+        //mockky by date time to avoid caching
+        const key = `${prefix}mockup-image-${Date.now()}-${i}.jpg`;
+        await this.s3Service.uploadMockupImage(bucketName, key, imageUrl);
+
+        console.log(`✅ Uploaded: ${key}`);
+      }
+    } catch (error) {
+      console.error("❌ Error uploading mockup images:", error);
+    }
   }
 }
