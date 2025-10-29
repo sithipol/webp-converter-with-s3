@@ -25,10 +25,12 @@ logs/*.log
 logs/*.json
 
 # Environment files (handled via docker-compose)
+.env
 .env.local
 .env.development
 .env.test
 .env.production
+.env.uat
 
 # Docker files
 Dockerfile*
