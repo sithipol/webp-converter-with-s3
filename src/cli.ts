@@ -50,13 +50,15 @@ export class CLI {
     // Clear history command
     this.program
       .command("clear-history")
-      .description("Clear conversion history (allows re-conversion of all images)")
+      .description(
+        "Clear conversion history (allows re-conversion of all images)"
+      )
       .option("-y, --yes", "Skip confirmation prompt", false)
       .action(async (options: { yes?: boolean }) => {
         await this.clearConversionHistory(options);
       });
-    
-    // Mockup images to s3 
+
+    // Mockup images to s3
     this.program
       .command("mock-image")
       .description("Mockup image to s3 100")
@@ -81,7 +83,12 @@ export class CLI {
       console.log(`📁 Target bucket: ${config.aws.targetBucket}`);
       console.log(`🌍 AWS region: ${config.aws.region}`);
       console.log(`🎨 WebP quality: ${config.conversion.quality}`);
-      console.log(`⚡ Concurrency: ${config.processing.concurrency}`);
+      console.log(`🔑 AWS max keys fetch list : ${config.aws.maxKeys || 1000}`);
+
+      console.log(
+        `🖼️ Supported formats: ${config.conversion.supportedFormats.join(", ")}`
+      );
+      console.log(`🖼️ Mockup image count: ${config.mockup?.imageCount || 0}`);
 
       console.log("\n🔍 Validating AWS permissions...");
       // Validation happens in constructor, so if we get here, it passed
@@ -130,7 +137,9 @@ export class CLI {
     console.log("📊 Conversion History\n");
 
     try {
-      const { FileBasedConversionTracker } = await import("./services/conversionTracker");
+      const { FileBasedConversionTracker } = await import(
+        "./services/conversionTracker"
+      );
       const tracker = new FileBasedConversionTracker();
 
       // Load the tracking data
@@ -138,7 +147,9 @@ export class CLI {
       const convertedKeys = await tracker.getConvertedKeys();
 
       if (convertedKeys.size === 0) {
-        console.log("No conversion history found. No images have been converted yet.");
+        console.log(
+          "No conversion history found. No images have been converted yet."
+        );
         return;
       }
 
@@ -146,20 +157,35 @@ export class CLI {
 
       if (options.verbose) {
         // Read the detailed records from the tracking file
-        const fs = await import('fs/promises');
+        const fs = await import("fs/promises");
         try {
-          const data = await fs.readFile('logs/converted-images.json', 'utf-8');
+          const data = await fs.readFile("logs/converted-images.json", "utf-8");
           const records = JSON.parse(data);
 
           console.log("🔍 Detailed conversion records:\n");
           records.forEach((record: any, index: number) => {
-            const sizeSavedKB = ((record.originalSize - record.convertedSize) / 1024).toFixed(1);
-            const compressionPercent = (record.compressionRatio * 100).toFixed(1);
+            const sizeSavedKB = (
+              (record.originalSize - record.convertedSize) /
+              1024
+            ).toFixed(1);
+            const compressionPercent = (record.compressionRatio * 100).toFixed(
+              1
+            );
 
             console.log(`${index + 1}. ${record.sourceKey}`);
             console.log(`   → ${record.targetKey}`);
-            console.log(`   📅 Converted: ${new Date(record.convertedAt).toLocaleString()}`);
-            console.log(`   📊 Size: ${(record.originalSize / 1024).toFixed(1)}KB → ${(record.convertedSize / 1024).toFixed(1)}KB (saved ${sizeSavedKB}KB, ${compressionPercent}% compression)`);
+            console.log(
+              `   📅 Converted: ${new Date(
+                record.convertedAt
+              ).toLocaleString()}`
+            );
+            console.log(
+              `   📊 Size: ${(record.originalSize / 1024).toFixed(1)}KB → ${(
+                record.convertedSize / 1024
+              ).toFixed(
+                1
+              )}KB (saved ${sizeSavedKB}KB, ${compressionPercent}% compression)`
+            );
             console.log("");
           });
         } catch (error) {
@@ -170,16 +196,17 @@ export class CLI {
         }
       } else {
         console.log("Recently converted images:");
-        Array.from(convertedKeys).slice(-10).forEach((key, index) => {
-          console.log(`${index + 1}. ${key}`);
-        });
+        Array.from(convertedKeys)
+          .slice(-10)
+          .forEach((key, index) => {
+            console.log(`${index + 1}. ${key}`);
+          });
 
         if (convertedKeys.size > 10) {
           console.log(`... and ${convertedKeys.size - 10} more images`);
         }
         console.log("\nUse --verbose flag to see detailed conversion records");
       }
-
     } catch (error) {
       console.error(
         "❌ Failed to load conversion history:",
@@ -189,12 +216,14 @@ export class CLI {
     }
   }
 
-  private async clearConversionHistory(options: { yes?: boolean }): Promise<void> {
+  private async clearConversionHistory(options: {
+    yes?: boolean;
+  }): Promise<void> {
     console.log("🗑️  Clear Conversion History\n");
 
     try {
-      const fs = await import('fs/promises');
-      const trackingFile = 'logs/converted-images.json';
+      const fs = await import("fs/promises");
+      const trackingFile = "logs/converted-images.json";
 
       // Check if tracking file exists
       try {
@@ -205,15 +234,21 @@ export class CLI {
       }
 
       // Show current history count
-      const { FileBasedConversionTracker } = await import("./services/conversionTracker");
+      const { FileBasedConversionTracker } = await import(
+        "./services/conversionTracker"
+      );
       const tracker = new FileBasedConversionTracker();
       await tracker.loadConvertedKeys();
       const convertedKeys = await tracker.getConvertedKeys();
 
-      console.log(`📊 Current history contains ${convertedKeys.size} converted images.`);
+      console.log(
+        `📊 Current history contains ${convertedKeys.size} converted images.`
+      );
       if (!options.yes) {
         // Simple confirmation without external dependencies
-        console.log("\n⚠️  This will clear all conversion history and allow all images to be re-converted.");
+        console.log(
+          "\n⚠️  This will clear all conversion history and allow all images to be re-converted."
+        );
         console.log("Are you sure you want to continue? (y/N)");
 
         // For now, we'll assume yes since we don't have readline setup
@@ -225,8 +260,9 @@ export class CLI {
       await fs.unlink(trackingFile);
 
       console.log("✅ Conversion history cleared successfully.");
-      console.log("All images will be processed again on the next conversion run.");
-
+      console.log(
+        "All images will be processed again on the next conversion run."
+      );
     } catch (error) {
       console.error(
         "❌ Failed to clear conversion history:",
