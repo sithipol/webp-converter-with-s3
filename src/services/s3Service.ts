@@ -119,8 +119,6 @@ export class AWSS3Service implements S3Service {
       }
     } while (continuationToken);
 
-    const duration = Date.now() - startTime;
-    console.log(`dutation: `, duration);
     return images;
   }
 

@@ -12,11 +12,11 @@ export interface ConversionRecord {
 }
 
 export interface ConversionTracker {
-    isConverted(sourceKey: string): Promise<boolean>;
-    markAsConverted(record: ConversionRecord): Promise<void>;
-    getConvertedKeys(): Promise<Set<string>>;
-    loadConvertedKeys(): Promise<void>;
-    flush(): Promise<void>;
+  isConverted(sourceKey: string): Promise<boolean>;
+  markAsConverted(record: ConversionRecord): Promise<void>;
+  getConvertedKeys(): Promise<Set<string>>;
+  loadConvertedKeys(onProgress?: (msg:string) => void): Promise<void>;
+  flush(): Promise<void>;
 }
 
 export class FileBasedConversionTracker implements ConversionTracker {
@@ -32,7 +32,7 @@ export class FileBasedConversionTracker implements ConversionTracker {
         this.appendLogPath = trackingFilePath.replace('.json', '-append.log');
     }
 
-    async loadConvertedKeys(): Promise<void> {
+    async loadConvertedKeys(onProgress?:(msg:string) => void): Promise<void> {
         if (this.isLoaded) return;
 
         try {
@@ -45,7 +45,7 @@ export class FileBasedConversionTracker implements ConversionTracker {
             
             // Load from append log (for crash recovery)
             await this.loadFromAppendLog();
-
+            onProgress?.(`Loaded ${this.convertedKeys.size} previously converted images from tracking files`);
             logger.info(`Loaded ${this.convertedKeys.size} previously converted images from tracking files`, {
                 operation: 'tracker.load',
                 trackingFile: this.trackingFilePath,
@@ -53,6 +53,7 @@ export class FileBasedConversionTracker implements ConversionTracker {
                 convertedCount: this.convertedKeys.size
             });
         } catch (error) {
+            onProgress?.(`Failed to load conversion tracking files, starting fresh`);
             logger.warn('Failed to load conversion tracking files, starting fresh', {
                 operation: 'tracker.loadError',
                 error: error instanceof Error ? error.message : String(error),

@@ -4,7 +4,7 @@ version: '3.8'
 services:
   webp-cli:
     image: public.ecr.aws/d8n6n6f3/cli:latest
-    container_name: webp-cli-prod
+    container_name: webp-cli
     env_file:
       - .env
     environment:

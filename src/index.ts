@@ -93,25 +93,29 @@ export class Application {
     }
   }
   async runConversion(
-    _options: ApplicationOptions = {}
+    _options: ApplicationOptions = {},
+    onProgress?: (msg: string) => void
   ): Promise<ConversionReport> {
     if (this.isShuttingDown) {
       throw new Error("Cannot run conversion during shutdown");
     }
     try {
-      const report = await this.conversionService.processAllImages();
+      const report = await this.conversionService.processAllImages(onProgress);
       return report;
     } catch (error) {
       throw error;
     }
   }
 
-  async runMockup(_options: ApplicationOptions = {}): Promise<void> {
+  async runMockup(
+    _options: ApplicationOptions = {},
+    onProgress?: (msg: string) => void
+  ): Promise<void> {
     if (this.isShuttingDown) {
       throw new Error("Cannot run conversion during shutdown");
     }
     try {
-      await this.conversionService.mockupImage();
+      await this.conversionService.mockupImage(onProgress);
     } catch (error) {
       throw error;
     }

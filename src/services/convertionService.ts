@@ -3,6 +3,7 @@ import { ConversionReport, ConversionResult } from "../models";
 import { ImageProcessor } from "./imageProcess";
 import { S3Object, S3Service } from "./s3Service";
 import { ConversionTracker, ConversionRecord } from "./conversionTracker";
+import logger from "../utils/logger";
 export interface ConversionService {
   processAllImages(): Promise<ConversionReport>;
   processImage(s3Object: S3Object): Promise<ConversionResult>;
@@ -42,7 +43,9 @@ export class BatchConversionService implements ConversionService {
     };
     this.dryRun = dryRun;
   }
-  async processAllImages(): Promise<ConversionReport> {
+  async processAllImages(
+    onProgress?: (msg: string) => void
+  ): Promise<ConversionReport> {
     const startTime = Date.now();
     const report: ConversionReport = {
       totalImages: 0,
@@ -56,8 +59,9 @@ export class BatchConversionService implements ConversionService {
       errors: [],
     };
     try {
+      onProgress?.("Starting process all images...");
       // Load conversion tracking data
-      await this.conversionTracker.loadConvertedKeys();
+      await this.conversionTracker.loadConvertedKeys(onProgress);
 
       const allImages = await this.s3Service.listImages(
         this.config.aws.targetBucket,
@@ -76,7 +80,7 @@ export class BatchConversionService implements ConversionService {
       for (const image of allImages) {
         if (await this.conversionTracker.isConverted(image.key)) {
           alreadyConverted++;
-          console.info(`Skipping already converted image: ${image.key}`, {
+          logger.info(`Skipping already converted image: ${image.key}`, {
             operation: "conversion.skip",
             sourceKey: image.key,
             reason: "already_converted",
@@ -86,15 +90,21 @@ export class BatchConversionService implements ConversionService {
         }
       }
 
-      console.info(`Image filtering completed`, {
+      logger.info(`Image filtering completed`, {
         operation: "batch.filter",
         totalImages: allImages.length,
         alreadyConverted,
         toProcess: images.length,
       });
+      onProgress?.(
+        `Found ${images.length} images to process (skipped ${alreadyConverted} already converted)`
+      );
 
       if (images.length === 0) {
-        console.info(
+        onProgress?.(
+          `All images have already been converted, nothing to process`
+        );
+        logger.info(
           "All images have already been converted, nothing to process"
         );
         report.processingDuration = Date.now() - startTime;
@@ -107,7 +117,7 @@ export class BatchConversionService implements ConversionService {
       this.processingQueue.completed.clear();
       this.processingQueue.failed.clear();
 
-      await this.processConcurrentBatches(report);
+      await this.processConcurrentBatches(report, onProgress);
 
       // Calculate average compression ratio
       if (report.successful > 0 && report.totalSizeBefore > 0) {
@@ -121,7 +131,7 @@ export class BatchConversionService implements ConversionService {
       // Flush any remaining tracking records
       await this.conversionTracker.flush();
 
-      console.info("Concurrent batch conversion completed", {
+      logger.info("Concurrent batch conversion completed", {
         operation: "batch.complete",
         duration: report.processingDuration,
         successful: report.successful,
@@ -129,6 +139,13 @@ export class BatchConversionService implements ConversionService {
         skipped: report.skipped,
         totalImages: report.totalImages,
       });
+      onProgress?.(
+        `Conversion completed: ${report.successful} successful, ${
+          report.failed
+        } failed, ${report.skipped} skipped in ${(
+          report.processingDuration / 1000
+        ).toFixed(1)}s`
+      );
 
       if (report.successful > 0) {
         const sizeSavedMB =
@@ -136,14 +153,18 @@ export class BatchConversionService implements ConversionService {
         const compressionPercent = (
           report.averageCompressionRatio * 100
         ).toFixed(1);
-
-        console.info("Batch conversion size reduction summary", {
+        logger.info("Batch conversion size reduction summary", {
           operation: "batch.summary",
           sizeSavedMB: Number(sizeSavedMB.toFixed(2)),
           compressionPercent: Number(compressionPercent),
           totalSizeBefore: report.totalSizeBefore,
           totalSizeAfter: report.totalSizeAfter,
         });
+        onProgress?.(
+          `Total size reduced by ${sizeSavedMB.toFixed(2)} MB (${Number(
+            compressionPercent
+          )}%)`
+        );
       }
 
       return report;
@@ -158,7 +179,8 @@ export class BatchConversionService implements ConversionService {
     // Implementation goes here
   }
   private async processConcurrentBatches(
-    report: ConversionReport
+    report: ConversionReport,
+    onProgress?: (msg: string) => void
   ): Promise<void> {
     const activePromises = new Map<string, Promise<ConversionResult>>();
 
@@ -170,8 +192,11 @@ export class BatchConversionService implements ConversionService {
         const image = this.processingQueue.pending.shift()!;
 
         this.processingQueue.processing.add(image.key);
-
-        const promise = this.processImageWithTracking(image, report);
+        const promise = this.processImageWithTracking(
+          image,
+          report,
+          onProgress
+        );
         activePromises.set(image.key, promise);
 
         // Don't overwhelm the system - small delay between starts
@@ -195,10 +220,11 @@ export class BatchConversionService implements ConversionService {
   }
   private async processImageWithTracking(
     image: S3Object,
-    report: ConversionReport
+    report: ConversionReport,
+    onProgress?: (msg: string) => void
   ): Promise<ConversionResult> {
     try {
-      const result = await this.processImage(image);
+      const result = await this.processImage(image, onProgress);
 
       // Update report based on result
       switch (result.status) {
@@ -247,7 +273,10 @@ export class BatchConversionService implements ConversionService {
       };
     }
   }
-  async processImage(s3Object: S3Object): Promise<ConversionResult> {
+  async processImage(
+    s3Object: S3Object,
+    onProgress?: (msg: string) => void
+  ): Promise<ConversionResult> {
     const startTime = Date.now();
     const sourceKey = s3Object.key;
     const targetKey = this.generateTargetKey(sourceKey);
@@ -318,7 +347,7 @@ export class BatchConversionService implements ConversionService {
           webpBuffer,
           uploadMetadata
         );
-
+        onProgress?.(`Process converted image: ${sourceKey} -> ${targetKey}`);
         // Track the successful conversion
         const conversionRecord: ConversionRecord = {
           sourceKey,
@@ -391,7 +420,7 @@ export class BatchConversionService implements ConversionService {
       return false;
     }
   }
-  async mockupImage(): Promise<void> {
+  async mockupImage(onProgress?: (message: string) => void): Promise<void> {
     const bucketName = this.config.aws.targetBucket;
     const prefix = this.config.aws.prefix || "mockup/";
     const totalImages = this.config.mockup?.imageCount || 0;
@@ -403,8 +432,7 @@ export class BatchConversionService implements ConversionService {
         //mockky by date time to avoid caching
         const key = `${prefix}mockup-image-${Date.now()}-${i}.jpg`;
         await this.s3Service.uploadMockupImage(bucketName, key, imageUrl);
-
-        console.log(`✅ Uploaded: ${key}`);
+        onProgress?.(`Uploaded mockup image ${i} of ${totalImages}`);
       }
     } catch (error) {
       console.error("❌ Error uploading mockup images:", error);
