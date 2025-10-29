@@ -5,6 +5,7 @@ import {
   BatchConversionService,
   ExpressService,
   SharpImageProcessor,
+  FileBasedConversionTracker,
 } from "./services";
 
 export interface ApplicationOptions {
@@ -17,6 +18,7 @@ export class Application {
   private readonly config: Config;
   private readonly s3Service: AWSS3Service;
   private readonly imageProcessor: SharpImageProcessor;
+  private readonly conversionTracker: FileBasedConversionTracker;
   private readonly conversionService: BatchConversionService;
   private readonly expressService: ExpressService;
   private isShuttingDown = false;
@@ -28,11 +30,14 @@ export class Application {
       this.config = getConfig();
       this.s3Service = new AWSS3Service(this.config);
       this.imageProcessor = new SharpImageProcessor();
+      this.conversionTracker = new FileBasedConversionTracker();
 
       this.conversionService = new BatchConversionService(
         this.s3Service,
         this.imageProcessor,
-        this.config
+        this.config,
+        this.conversionTracker,
+        options.dryRun || false
       );
       this.expressService = new ExpressService(
         this.config,
@@ -96,6 +101,17 @@ export class Application {
     try {
       const report = await this.conversionService.processAllImages();
       return report;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async runMockup(_options: ApplicationOptions = {}): Promise<void> {
+    if (this.isShuttingDown) {
+      throw new Error("Cannot run conversion during shutdown");
+    }
+    try {
+      await this.conversionService.mockupImage();
     } catch (error) {
       throw error;
     }

@@ -2,11 +2,13 @@ import { Config } from "../config";
 import { ConversionReport, ConversionResult } from "../models";
 import { ImageProcessor } from "./imageProcess";
 import { S3Object, S3Service } from "./s3Service";
+import { ConversionTracker, ConversionRecord } from "./conversionTracker";
 
 export interface ConversionService {
   processAllImages(): Promise<ConversionReport>;
   processImage(s3Object: S3Object): Promise<ConversionResult>;
   skipIfExists(targetKey: string): Promise<boolean>;
+  mockupImage(): Promise<void>;
 }
 interface ProcessingQueue {
   pending: S3Object[];
@@ -20,15 +22,19 @@ export class BatchConversionService implements ConversionService {
   private readonly config: Config;
   private readonly processingQueue: ProcessingQueue;
   private readonly dryRun: boolean;
+  private readonly conversionTracker: ConversionTracker;
+
   constructor(
     s3Service: S3Service,
     imageProcessor: ImageProcessor,
     config: Config,
+    conversionTracker: ConversionTracker,
     dryRun: boolean = false
   ) {
     this.s3Service = s3Service;
     this.imageProcessor = imageProcessor;
     this.config = config;
+    this.conversionTracker = conversionTracker;
     this.processingQueue = {
       pending: [],
       processing: new Set(),
@@ -51,12 +57,45 @@ export class BatchConversionService implements ConversionService {
       errors: [],
     };
     try {
-      const images = await this.s3Service.listImages(
+      // Load conversion tracking data
+      await this.conversionTracker.loadConvertedKeys();
+
+      const allImages = await this.s3Service.listImages(
         this.config.aws.targetBucket,
         this.config.aws.prefix || ""
       );
 
+      if (allImages.length === 0) {
+        report.processingDuration = Date.now() - startTime;
+        return report;
+      }
+
+      // Filter out already converted images
+      const images = [];
+      let alreadyConverted = 0;
+
+      for (const image of allImages) {
+        if (await this.conversionTracker.isConverted(image.key)) {
+          alreadyConverted++;
+          console.info(`Skipping already converted image: ${image.key}`, {
+            operation: 'conversion.skip',
+            sourceKey: image.key,
+            reason: 'already_converted'
+          });
+        } else {
+          images.push(image);
+        }
+      }
+
+      console.info(`Image filtering completed`, {
+        operation: 'batch.filter',
+        totalImages: allImages.length,
+        alreadyConverted,
+        toProcess: images.length
+      });
+
       if (images.length === 0) {
+        console.info('All images have already been converted, nothing to process');
         report.processingDuration = Date.now() - startTime;
         return report;
       }
@@ -77,6 +116,9 @@ export class BatchConversionService implements ConversionService {
       }
 
       report.processingDuration = Date.now() - startTime;
+
+      // Flush any remaining tracking records
+      await this.conversionTracker.flush();
 
       console.info("Concurrent batch conversion completed", {
         operation: "batch.complete",
@@ -125,6 +167,7 @@ export class BatchConversionService implements ConversionService {
       // Start new processing tasks up to concurrency limit
       while (this.processingQueue.pending.length > 0) {
         const image = this.processingQueue.pending.shift()!;
+
         this.processingQueue.processing.add(image.key);
 
         const promise = this.processImageWithTracking(image, report);
@@ -203,7 +246,6 @@ export class BatchConversionService implements ConversionService {
       };
     }
   }
-
   async processImage(s3Object: S3Object): Promise<ConversionResult> {
     const startTime = Date.now();
     const sourceKey = s3Object.key;
@@ -275,6 +317,18 @@ export class BatchConversionService implements ConversionService {
           webpBuffer,
           uploadMetadata
         );
+
+        // Track the successful conversion
+        const conversionRecord: ConversionRecord = {
+          sourceKey,
+          targetKey,
+          convertedAt: new Date().toISOString(),
+          originalSize: result.originalSize,
+          convertedSize: result.convertedSize,
+          compressionRatio: result.compressionRatio
+        };
+
+        await this.conversionTracker.markAsConverted(conversionRecord);
       } else {
         console.info(`DRY RUN: Would upload converted image`, {
           operation: "conversion.dryrun",
@@ -283,6 +337,13 @@ export class BatchConversionService implements ConversionService {
           originalSize: result.originalSize,
           convertedSize: result.convertedSize,
           compressionRatio: result.compressionRatio,
+        });
+
+        // In dry run mode, don't actually track the conversion
+        console.info(`DRY RUN: Would track conversion: ${sourceKey}`, {
+          operation: "conversion.dryrun.track",
+          sourceKey,
+          targetKey
         });
       }
 
@@ -328,5 +389,8 @@ export class BatchConversionService implements ConversionService {
       console.log("Error in skipIfExists:", error);
       return false;
     }
+  }
+  async mockupImage(): Promise<void> {
+    
   }
 }
