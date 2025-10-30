@@ -5,3 +5,4 @@ node_modules
 TRACKING_OPTIMIZATION.md
 logs
 
+.env.uat
