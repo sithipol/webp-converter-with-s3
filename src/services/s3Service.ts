@@ -80,7 +80,7 @@ export class AWSS3Service implements S3Service {
         Bucket: bucketName,
         Prefix: prefix,
         ContinuationToken: continuationToken,
-        MaxKeys: 1000, // Process in batches
+        MaxKeys: this.config.aws.maxKeys, // Process in batches
       });
       try {
         const response: ListObjectsV2CommandOutput = await this.client.send(

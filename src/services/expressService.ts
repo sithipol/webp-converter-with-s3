@@ -87,8 +87,8 @@ export class ExpressService implements ExpressService {
           health.status === "healthy"
             ? 200
             : health.status === "degraded"
-            ? 200
-            : 503;
+              ? 200
+              : 503;
 
         res.status(statusCode).json(health);
       } catch (error) {
@@ -115,8 +115,8 @@ export class ExpressService implements ExpressService {
   }
   async stopServer(): Promise<void> {
     return new Promise((resolve, reject) => {
-      if (this.server) {
-        this.server.close((err: Error) => {
+      if (this.server && this.server.listening) {
+        this.server.close((err?: Error) => {
           if (err) {
             reject(err);
           } else {
@@ -125,6 +125,7 @@ export class ExpressService implements ExpressService {
           }
         });
       } else {
+        // Server is not running or already closed
         resolve();
       }
     });
